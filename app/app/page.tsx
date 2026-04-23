@@ -51,7 +51,7 @@ export default function HomePage() {
       <header className="bg-white border-b border-zinc-200 px-6 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-semibold text-zinc-900">AI Lesson Planner</h1>
+            <h1 className="text-xl font-semibold text-zinc-900">TeachKit</h1>
             {profile && (
               <p className="text-sm text-zinc-500">
                 {profile.gradeLevel} · {profile.subject} · {profile.teachingTone}

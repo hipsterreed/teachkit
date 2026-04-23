@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Lesson Planner",
+  title: "TeachKit",
   description: "Create AI-powered lessons for your students",
 };
 
