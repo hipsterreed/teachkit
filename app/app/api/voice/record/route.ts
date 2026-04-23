@@ -2,27 +2,34 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase-admin";
 import type { VoiceProfile } from "@/lib/types";
 
-const TEACHER_DOC = "teacher/default";
+function getTeacherDoc(sessionId: string) {
+  return db.doc(`teachers/${sessionId}`);
+}
 
 export async function POST(request: Request) {
   try {
+    const sessionId = request.headers.get("x-session-id");
+    if (!sessionId) {
+      return NextResponse.json({ error: "No session ID provided" }, { status: 400 });
+    }
+
     const formData = await request.formData();
     const audioFile = formData.get("audio") as File | null;
+    const teacherName = formData.get("teacherName") as string | null;
 
     if (!audioFile) {
       return NextResponse.json({ error: "No audio file provided" }, { status: 400 });
     }
 
-    // Forward to ElevenLabs voice clone endpoint
+    const voiceName = teacherName ? `${teacherName} (TeachKit)` : "Teacher Voice";
+
     const elevenFormData = new FormData();
-    elevenFormData.append("name", "Teacher Voice");
+    elevenFormData.append("name", voiceName);
     elevenFormData.append("files", audioFile);
 
     const elevenRes = await fetch("https://api.elevenlabs.io/v1/voices/add", {
       method: "POST",
-      headers: {
-        "xi-api-key": process.env.ELEVENLABS_API_KEY ?? "",
-      },
+      headers: { "xi-api-key": process.env.ELEVENLABS_API_KEY ?? "" },
       body: elevenFormData,
     });
 
@@ -51,7 +58,7 @@ export async function POST(request: Request) {
       createdAt: new Date().toISOString(),
     };
 
-    await db.doc(TEACHER_DOC).set({ voiceProfile }, { merge: true });
+    await getTeacherDoc(sessionId).set({ voiceProfile }, { merge: true });
 
     return NextResponse.json({ voiceProfile });
   } catch (error) {

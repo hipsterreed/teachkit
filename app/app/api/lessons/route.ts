@@ -9,12 +9,22 @@ import type { Lesson, TeacherProfile, VoiceProfile } from "@/lib/types";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const TEACHER_DOC = "teacher/default";
+function getTeacherDoc(sessionId: string) {
+  return db.doc(`teachers/${sessionId}`);
+}
 
-export async function GET() {
+function getLessonsCollection(sessionId: string) {
+  return db.collection(`teachers/${sessionId}/lessons`);
+}
+
+export async function GET(request: Request) {
   try {
-    const snapshot = await db
-      .collection("lessons")
+    const sessionId = request.headers.get("x-session-id");
+    if (!sessionId) {
+      return NextResponse.json({ lessons: [] });
+    }
+
+    const snapshot = await getLessonsCollection(sessionId)
       .orderBy("createdAt", "desc")
       .get();
 
@@ -28,9 +38,13 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const sessionId = request.headers.get("x-session-id");
+    if (!sessionId) {
+      return NextResponse.json({ error: "No session ID provided" }, { status: 400 });
+    }
+
     const body = await request.json();
 
-    // Validate brief
     const briefValidation = validateLessonBrief(body);
     if (!briefValidation.valid) {
       return NextResponse.json(
@@ -39,8 +53,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Load teacher profile
-    const teacherDoc = await db.doc(TEACHER_DOC).get();
+    const teacherDoc = await getTeacherDoc(sessionId).get();
     if (!teacherDoc.exists) {
       return NextResponse.json(
         { error: "Teacher profile not set. Please complete your profile first." },
@@ -68,7 +81,6 @@ export async function POST(request: Request) {
       inclusions: body.inclusions ?? null,
     };
 
-    // Generate lesson with OpenAI
     const prompt = buildGenerationPrompt(profile, brief);
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -101,7 +113,7 @@ export async function POST(request: Request) {
       publishedAt: null,
     };
 
-    await db.doc(`lessons/${lessonId}`).set(lesson);
+    await getLessonsCollection(sessionId).doc(lessonId).set(lesson);
 
     return NextResponse.json(lesson, { status: 201 });
   } catch (error) {

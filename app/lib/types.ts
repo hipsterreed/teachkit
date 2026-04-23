@@ -1,4 +1,5 @@
 export interface TeacherProfile {
+  name: string; // teacher's name
   gradeLevel: string; // "Kindergarten" | "Grade 1" … "Grade 12"
   subject: string; // free text, e.g. "Biology"
   teachingTone: "Fun" | "Structured" | "Simple" | "Engaging";

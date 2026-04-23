@@ -5,12 +5,23 @@ import type { Lesson, Page, VoiceProfile } from "@/lib/types";
 
 type Params = Promise<{ lessonId: string; pageId: string }>;
 
-export async function POST(_request: Request, { params }: { params: Params }) {
+function getLessonDoc(sessionId: string, lessonId: string) {
+  return db.doc(`teachers/${sessionId}/lessons/${lessonId}`);
+}
+
+function getTeacherDoc(sessionId: string) {
+  return db.doc(`teachers/${sessionId}`);
+}
+
+export async function POST(request: Request, { params }: { params: Params }) {
   try {
     const { lessonId, pageId } = await params;
+    const sessionId = request.headers.get("x-session-id");
+    if (!sessionId) {
+      return NextResponse.json({ error: "No session ID provided" }, { status: 400 });
+    }
 
-    // Load lesson
-    const doc = await db.doc(`lessons/${lessonId}`).get();
+    const doc = await getLessonDoc(sessionId, lessonId).get();
     if (!doc.exists) {
       return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
     }
@@ -24,11 +35,8 @@ export async function POST(_request: Request, { params }: { params: Params }) {
 
     const page = lesson.pages[pageIndex];
 
-    // Get active voice profile
-    const teacherDoc = await db.doc("teacher/default").get();
-    const teacherData = teacherDoc.data() as {
-      voiceProfile?: VoiceProfile | null;
-    } | undefined;
+    const teacherDoc = await getTeacherDoc(sessionId).get();
+    const teacherData = teacherDoc.data() as { voiceProfile?: VoiceProfile | null } | undefined;
 
     const voiceId =
       teacherData?.voiceProfile?.elevenLabsVoiceId ??
@@ -41,10 +49,8 @@ export async function POST(_request: Request, { params }: { params: Params }) {
       );
     }
 
-    // Build TTS text
     const ttsText = buildTtsText(page);
 
-    // Call ElevenLabs TTS API
     const elevenRes = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
       {
@@ -57,10 +63,7 @@ export async function POST(_request: Request, { params }: { params: Params }) {
         body: JSON.stringify({
           text: ttsText,
           model_id: "eleven_turbo_v2",
-          voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.75,
-          },
+          voice_settings: { stability: 0.5, similarity_boost: 0.75 },
           output_format: "mp3_44100_128",
         }),
       }
@@ -75,31 +78,21 @@ export async function POST(_request: Request, { params }: { params: Params }) {
       );
     }
 
-    // Upload audio to Firebase Storage
     const audioBuffer = Buffer.from(await elevenRes.arrayBuffer());
-    const storagePath = `audio/${lessonId}/${pageId}.mp3`;
+    const storagePath = `audio/${sessionId}/${lessonId}/${pageId}.mp3`;
     const bucket = storage.bucket();
     const file = bucket.file(storagePath);
 
-    await file.save(audioBuffer, {
-      metadata: { contentType: "audio/mpeg" },
-    });
-
-    // Make the file publicly readable and get download URL
+    await file.save(audioBuffer, { metadata: { contentType: "audio/mpeg" } });
     await file.makePublic();
+
     const narrationUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
 
-    // Update page: approved + narrationUrl
-    const updatedPage: Page = {
-      ...page,
-      status: "approved",
-      narrationUrl,
-    };
-
+    const updatedPage: Page = { ...page, status: "approved", narrationUrl };
     const updatedPages = [...lesson.pages];
     updatedPages[pageIndex] = updatedPage;
 
-    await db.doc(`lessons/${lessonId}`).update({ pages: updatedPages });
+    await getLessonDoc(sessionId, lessonId).update({ pages: updatedPages });
 
     return NextResponse.json(updatedPage);
   } catch (error) {

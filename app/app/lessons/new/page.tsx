@@ -1,24 +1,35 @@
 "use client";
 
+import { useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { BriefForm } from "@/components/lesson/BriefForm";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useSession } from "@/lib/use-session";
 import type { LessonBrief } from "@/lib/types";
-import { useState } from "react";
 
-export default function NewLessonPage() {
+function NewLessonContent() {
   const router = useRouter();
+  const sessionId = useSession();
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (brief: LessonBrief) => {
+    if (!sessionId) {
+      toast.error("No session found. Please set up your profile first.");
+      router.push("/setup");
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch("/api/lessons", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-session-id": sessionId,
+        },
         body: JSON.stringify(brief),
       });
 
@@ -30,7 +41,7 @@ export default function NewLessonPage() {
 
       const lesson = await res.json();
       toast.success("Lesson generated!");
-      router.push(`/lessons/${lesson.id}`);
+      router.push(`/lessons/${lesson.id}?session=${sessionId}`);
     } catch {
       toast.error("Something went wrong. Please try again.");
     } finally {
@@ -43,7 +54,7 @@ export default function NewLessonPage() {
       <header className="bg-white border-b border-zinc-200 px-6 py-4">
         <div className="max-w-2xl mx-auto flex items-center gap-4">
           <Button variant="ghost" size="sm" asChild>
-            <Link href="/">← Back</Link>
+            <Link href={sessionId ? `/?session=${sessionId}` : "/"}>← Back</Link>
           </Button>
           <h1 className="text-lg font-semibold text-zinc-900">New Lesson</h1>
         </div>
@@ -64,5 +75,13 @@ export default function NewLessonPage() {
         </Card>
       </main>
     </div>
+  );
+}
+
+export default function NewLessonPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><p className="text-zinc-500">Loading...</p></div>}>
+      <NewLessonContent />
+    </Suspense>
   );
 }

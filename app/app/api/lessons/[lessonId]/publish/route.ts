@@ -5,11 +5,19 @@ import type { Lesson } from "@/lib/types";
 
 type Params = Promise<{ lessonId: string }>;
 
-export async function POST(_request: Request, { params }: { params: Params }) {
+function getLessonDoc(sessionId: string, lessonId: string) {
+  return db.doc(`teachers/${sessionId}/lessons/${lessonId}`);
+}
+
+export async function POST(request: Request, { params }: { params: Params }) {
   try {
     const { lessonId } = await params;
+    const sessionId = request.headers.get("x-session-id");
+    if (!sessionId) {
+      return NextResponse.json({ error: "No session ID provided" }, { status: 400 });
+    }
 
-    const doc = await db.doc(`lessons/${lessonId}`).get();
+    const doc = await getLessonDoc(sessionId, lessonId).get();
     if (!doc.exists) {
       return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
     }
@@ -32,12 +40,11 @@ export async function POST(_request: Request, { params }: { params: Params }) {
       publishedAt: new Date().toISOString(),
     };
 
-    await db.doc(`lessons/${lessonId}`).update(updates);
+    await getLessonDoc(sessionId, lessonId).update(updates);
 
-    const publishedLesson: Lesson = { ...lesson, ...updates } as Lesson;
-    return NextResponse.json(publishedLesson);
+    return NextResponse.json({ ...lesson, ...updates } as Lesson);
   } catch (error) {
-    console.error("POST /api/lessons/[lessonId]/publish error:", error);
+    console.error("POST publish error:", error);
     return NextResponse.json({ error: "Failed to publish lesson" }, { status: 500 });
   }
 }

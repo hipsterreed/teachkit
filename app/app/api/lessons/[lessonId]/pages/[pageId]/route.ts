@@ -5,12 +5,21 @@ import type { Lesson, Page } from "@/lib/types";
 
 type Params = Promise<{ lessonId: string; pageId: string }>;
 
+function getLessonDoc(sessionId: string, lessonId: string) {
+  return db.doc(`teachers/${sessionId}/lessons/${lessonId}`);
+}
+
 export async function PATCH(request: Request, { params }: { params: Params }) {
   try {
     const { lessonId, pageId } = await params;
-    const body = await request.json();
+    const sessionId = request.headers.get("x-session-id");
+    if (!sessionId) {
+      return NextResponse.json({ error: "No session ID provided" }, { status: 400 });
+    }
 
-    const doc = await db.doc(`lessons/${lessonId}`).get();
+    const body = await request.json();
+    const doc = await getLessonDoc(sessionId, lessonId).get();
+
     if (!doc.exists) {
       return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
     }
@@ -32,11 +41,11 @@ export async function PATCH(request: Request, { params }: { params: Params }) {
     const updatedPages = [...lesson.pages];
     updatedPages[pageIndex] = updatedPage;
 
-    await db.doc(`lessons/${lessonId}`).update({ pages: updatedPages });
+    await getLessonDoc(sessionId, lessonId).update({ pages: updatedPages });
 
     return NextResponse.json(updatedPage);
   } catch (error) {
-    console.error("PATCH /api/lessons/[lessonId]/pages/[pageId] error:", error);
+    console.error("PATCH page error:", error);
     return NextResponse.json({ error: "Failed to update page" }, { status: 500 });
   }
 }

@@ -8,28 +8,29 @@ import type { Lesson, Page } from "@/lib/types";
 
 interface PublishBarProps {
   lesson: Lesson;
+  sessionId: string;
   onPagesUpdate: (pages: Page[]) => void;
   onPublish: (publishedLesson: Lesson) => void;
 }
 
-export function PublishBar({ lesson, onPagesUpdate, onPublish }: PublishBarProps) {
+export function PublishBar({ lesson, sessionId, onPagesUpdate, onPublish }: PublishBarProps) {
   const [isApprovingAll, setIsApprovingAll] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
 
   const pendingCount = lesson.pages.filter((p) => p.status === "pending").length;
   const publishable = canPublish(lesson);
+  const headers = { "x-session-id": sessionId };
 
   const handleApproveAll = async () => {
     setIsApprovingAll(true);
     try {
-      // Generate narration and approve all pending pages sequentially
-      // (sequential to avoid hammering ElevenLabs rate limits)
       const pendingPages = lesson.pages.filter((p) => p.status === "pending");
       const updatedPages = [...lesson.pages];
 
       for (const p of pendingPages) {
         const res = await fetch(`/api/lessons/${lesson.id}/pages/${p.id}/narration`, {
           method: "POST",
+          headers,
         });
         if (res.ok) {
           const updatedPage = await res.json();
@@ -52,6 +53,7 @@ export function PublishBar({ lesson, onPagesUpdate, onPublish }: PublishBarProps
     try {
       const res = await fetch(`/api/lessons/${lesson.id}/publish`, {
         method: "POST",
+        headers,
       });
 
       if (!res.ok) {
@@ -79,14 +81,7 @@ export function PublishBar({ lesson, onPagesUpdate, onPublish }: PublishBarProps
             <p className="text-sm font-medium text-green-700">✓ Published</p>
             <p className="text-xs text-zinc-500 mt-0.5 truncate max-w-xs">{shareUrl}</p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              navigator.clipboard.writeText(shareUrl);
-              toast.success("Link copied!");
-            }}
-          >
+          <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(shareUrl); toast.success("Link copied!"); }}>
             Copy Link
           </Button>
         </div>
@@ -104,20 +99,11 @@ export function PublishBar({ lesson, onPagesUpdate, onPublish }: PublishBarProps
         </p>
         <div className="flex gap-2">
           {pendingCount > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleApproveAll}
-              disabled={isApprovingAll || isPublishing}
-            >
+            <Button variant="outline" size="sm" onClick={handleApproveAll} disabled={isApprovingAll || isPublishing}>
               {isApprovingAll ? "Approving..." : "Approve All"}
             </Button>
           )}
-          <Button
-            size="sm"
-            onClick={handlePublish}
-            disabled={!publishable || isPublishing || isApprovingAll}
-          >
+          <Button size="sm" onClick={handlePublish} disabled={!publishable || isPublishing || isApprovingAll}>
             {isPublishing ? "Publishing..." : "Publish Lesson"}
           </Button>
         </div>

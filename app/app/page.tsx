@@ -1,22 +1,43 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { getSessionId, setSessionId, sessionHeaders } from "@/lib/session";
 import type { Lesson, TeacherProfile } from "@/lib/types";
+import { Suspense } from "react";
 
-export default function HomePage() {
+function HomeContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [profile, setProfile] = useState<TeacherProfile | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Sync session from URL param into localStorage
+    const urlSession = searchParams.get("session");
+    if (urlSession) setSessionId(urlSession);
+
+    const sessionId = urlSession ?? getSessionId();
+
+    if (!sessionId) {
+      router.push("/setup");
+      return;
+    }
+
+    // Ensure session is in the URL
+    if (!urlSession && sessionId) {
+      router.replace(`/?session=${sessionId}`);
+    }
+
     const init = async () => {
-      const res = await fetch("/api/teacher");
+      const res = await fetch("/api/teacher", {
+        headers: { "x-session-id": sessionId },
+      });
       const data = await res.json();
 
       if (!data.profile) {
@@ -26,7 +47,9 @@ export default function HomePage() {
 
       setProfile(data.profile);
 
-      const lessonsRes = await fetch("/api/lessons");
+      const lessonsRes = await fetch("/api/lessons", {
+        headers: { "x-session-id": sessionId },
+      });
       if (lessonsRes.ok) {
         const lessonsData = await lessonsRes.json();
         setLessons(lessonsData.lessons ?? []);
@@ -36,7 +59,9 @@ export default function HomePage() {
     };
 
     init();
-  }, [router]);
+  }, [router, searchParams]);
+
+  const sessionId = searchParams.get("session") ?? getSessionId();
 
   if (loading) {
     return (
@@ -60,10 +85,10 @@ export default function HomePage() {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" asChild>
-              <Link href="/setup">Edit Profile</Link>
+              <Link href={`/setup?session=${sessionId}`}>Edit Profile</Link>
             </Button>
             <Button size="sm" asChild>
-              <Link href="/lessons/new">+ New Lesson</Link>
+              <Link href={`/lessons/new?session=${sessionId}`}>+ New Lesson</Link>
             </Button>
           </div>
         </div>
@@ -77,7 +102,7 @@ export default function HomePage() {
               Create your first AI-generated lesson in just a few minutes.
             </p>
             <Button asChild>
-              <Link href="/lessons/new">Create Your First Lesson</Link>
+              <Link href={`/lessons/new?session=${sessionId}`}>Create Your First Lesson</Link>
             </Button>
           </div>
         ) : (
@@ -101,7 +126,7 @@ export default function HomePage() {
                       {lesson.pages.filter((p) => p.status === "approved").length} approved
                     </p>
                     <Button variant="outline" size="sm" asChild>
-                      <Link href={`/lessons/${lesson.id}`}>
+                      <Link href={`/lessons/${lesson.id}?session=${sessionId}`}>
                         {lesson.status === "published" ? "View" : "Review"}
                       </Link>
                     </Button>
@@ -113,5 +138,17 @@ export default function HomePage() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-zinc-50">
+        <p className="text-zinc-500">Loading...</p>
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
   );
 }

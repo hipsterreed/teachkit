@@ -2,14 +2,22 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase-admin";
 import type { VoiceProfile } from "@/lib/types";
 
-const TEACHER_DOC = "teacher/default";
+function getTeacherDoc(sessionId: string) {
+  return db.doc(`teachers/${sessionId}`);
+}
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const doc = await db.doc(TEACHER_DOC).get();
+    const sessionId = request.headers.get("x-session-id");
+    if (!sessionId) {
+      return NextResponse.json({ voiceProfile: null });
+    }
+
+    const doc = await getTeacherDoc(sessionId).get();
     if (!doc.exists) {
       return NextResponse.json({ voiceProfile: null });
     }
+
     const data = doc.data() as { voiceProfile?: VoiceProfile | null };
     return NextResponse.json({ voiceProfile: data.voiceProfile ?? null });
   } catch (error) {
@@ -20,6 +28,11 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
+    const sessionId = request.headers.get("x-session-id");
+    if (!sessionId) {
+      return NextResponse.json({ error: "No session ID provided" }, { status: 400 });
+    }
+
     const body = await request.json();
 
     if (!body.type || !body.elevenLabsVoiceId) {
@@ -35,7 +48,7 @@ export async function PUT(request: Request) {
       ...(body.createdAt ? { createdAt: body.createdAt } : {}),
     };
 
-    await db.doc(TEACHER_DOC).set({ voiceProfile }, { merge: true });
+    await getTeacherDoc(sessionId).set({ voiceProfile }, { merge: true });
 
     return NextResponse.json({ voiceProfile });
   } catch (error) {
