@@ -105,7 +105,7 @@ export function ProfileForm({
         <Label htmlFor="gradeLevel" className="text-sm font-medium text-zinc-700">
           Grade level
         </Label>
-        <Select value={gradeLevel} onValueChange={setGradeLevel}>
+        <Select value={gradeLevel} onValueChange={(v) => setGradeLevel(v ?? "")}>
           <SelectTrigger
             id="gradeLevel"
             className={errors.gradeLevel ? "border-red-400 focus:ring-red-400" : ""}
