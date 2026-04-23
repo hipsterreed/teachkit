@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageEditor } from "./PageEditor";
 import { NarrationPlayer } from "./NarrationPlayer";
+import { PageRenderer } from "./PageRenderer";
 import type { Page } from "@/lib/types";
 
 interface PageCardProps {
@@ -79,12 +80,9 @@ export function PageCard({ page, lessonId, sessionId, onPageUpdate }: PageCardPr
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium text-zinc-400 uppercase tracking-wide mb-1">
-            Page {page.order}
-          </p>
-          <h2 className="text-2xl font-semibold text-zinc-900">{page.title}</h2>
-        </div>
+        <p className="text-xs font-medium text-zinc-400 uppercase tracking-wide">
+          Page {page.order}
+        </p>
         <Badge variant={page.status === "approved" ? "default" : "secondary"} className="shrink-0">
           {page.status === "approved" ? "✓ Approved" : "Pending"}
         </Badge>
@@ -102,20 +100,13 @@ export function PageCard({ page, lessonId, sessionId, onPageUpdate }: PageCardPr
         <>
           {page.narrationUrl && <NarrationPlayer src={page.narrationUrl} />}
 
-          <div className="space-y-5">
-            <section>
-              <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">Content</h3>
-              <p className="text-zinc-700 leading-relaxed whitespace-pre-wrap">{page.body}</p>
-            </section>
-            <section className="bg-blue-50 rounded-lg p-4">
-              <h3 className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-2">Example</h3>
-              <p className="text-zinc-700 leading-relaxed whitespace-pre-wrap">{page.example}</p>
-            </section>
-            <section className="bg-amber-50 rounded-lg p-4">
-              <h3 className="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-2">Activity</h3>
-              <p className="text-zinc-700 leading-relaxed whitespace-pre-wrap">{page.activity}</p>
-            </section>
-          </div>
+          <PageRenderer
+            page={page}
+            lessonId={lessonId}
+            sessionId={sessionId}
+            readOnly={false}
+            onPageUpdate={(updates) => onPageUpdate({ ...page, ...updates } as typeof page)}
+          />
 
           <div className="flex gap-2 pt-2 border-t border-zinc-100">
             {page.status === "pending" && (
