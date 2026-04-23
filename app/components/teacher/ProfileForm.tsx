@@ -29,7 +29,12 @@ const GRADE_LEVELS = [
   "Grade 12",
 ];
 
-const TEACHING_TONES = ["Fun", "Structured", "Simple", "Engaging"] as const;
+const TEACHING_TONES: { value: TeacherProfile["teachingTone"]; description: string }[] = [
+  { value: "Fun", description: "Playful, energetic, and engaging" },
+  { value: "Structured", description: "Clear, methodical, and organized" },
+  { value: "Simple", description: "Plain language, easy to follow" },
+  { value: "Engaging", description: "Conversational and thought-provoking" },
+];
 
 interface ProfileFormProps {
   initialValues?: Partial<TeacherProfile>;
@@ -42,6 +47,7 @@ export function ProfileForm({
   onSubmit,
   submitLabel = "Save Profile",
 }: ProfileFormProps) {
+  const [name, setName] = useState(initialValues?.name ?? "");
   const [gradeLevel, setGradeLevel] = useState(initialValues?.gradeLevel ?? "");
   const [subject, setSubject] = useState(initialValues?.subject ?? "");
   const [teachingTone, setTeachingTone] = useState<TeacherProfile["teachingTone"] | "">(
@@ -52,6 +58,7 @@ export function ProfileForm({
 
   const validate = (): boolean => {
     const newErrors: Partial<Record<keyof TeacherProfile, string>> = {};
+    if (!name.trim()) newErrors.name = "Name is required";
     if (!gradeLevel) newErrors.gradeLevel = "Grade level is required";
     if (!subject.trim()) newErrors.subject = "Subject is required";
     if (!teachingTone) newErrors.teachingTone = "Teaching tone is required";
@@ -65,6 +72,7 @@ export function ProfileForm({
     setLoading(true);
     try {
       await onSubmit({
+        name: name.trim(),
         gradeLevel,
         subject: subject.trim(),
         teachingTone: teachingTone as TeacherProfile["teachingTone"],
@@ -75,12 +83,34 @@ export function ProfileForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="space-y-2">
-        <Label htmlFor="gradeLevel">Grade Level</Label>
+    <form onSubmit={handleSubmit} className="space-y-5">
+      {/* Name */}
+      <div className="space-y-1.5">
+        <Label htmlFor="name" className="text-sm font-medium text-zinc-700">
+          Your name
+        </Label>
+        <Input
+          id="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g. Ms. Johnson"
+          className={errors.name ? "border-red-400 focus:ring-red-400" : ""}
+        />
+        {errors.name && (
+          <p className="text-xs text-red-500">{errors.name}</p>
+        )}
+      </div>
+      {/* Grade level */}
+      <div className="space-y-1.5">
+        <Label htmlFor="gradeLevel" className="text-sm font-medium text-zinc-700">
+          Grade level
+        </Label>
         <Select value={gradeLevel} onValueChange={setGradeLevel}>
-          <SelectTrigger id="gradeLevel" className={errors.gradeLevel ? "border-red-500" : ""}>
-            <SelectValue placeholder="Select a grade level" />
+          <SelectTrigger
+            id="gradeLevel"
+            className={errors.gradeLevel ? "border-red-400 focus:ring-red-400" : ""}
+          >
+            <SelectValue placeholder="Select a grade" />
           </SelectTrigger>
           <SelectContent>
             {GRADE_LEVELS.map((grade) => (
@@ -91,50 +121,59 @@ export function ProfileForm({
           </SelectContent>
         </Select>
         {errors.gradeLevel && (
-          <p className="text-sm text-red-500">{errors.gradeLevel}</p>
+          <p className="text-xs text-red-500">{errors.gradeLevel}</p>
         )}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="subject">Subject / Class</Label>
+      {/* Subject */}
+      <div className="space-y-1.5">
+        <Label htmlFor="subject" className="text-sm font-medium text-zinc-700">
+          Subject or class
+        </Label>
         <Input
           id="subject"
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
           placeholder="e.g. Biology, 5th Grade Math, World History"
-          className={errors.subject ? "border-red-500" : ""}
+          className={errors.subject ? "border-red-400 focus:ring-red-400" : ""}
         />
         {errors.subject && (
-          <p className="text-sm text-red-500">{errors.subject}</p>
+          <p className="text-xs text-red-500">{errors.subject}</p>
         )}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="teachingTone">Teaching Tone</Label>
+      {/* Teaching tone */}
+      <div className="space-y-1.5">
+        <Label htmlFor="teachingTone" className="text-sm font-medium text-zinc-700">
+          Teaching tone
+        </Label>
         <Select
           value={teachingTone}
           onValueChange={(v) => setTeachingTone(v as TeacherProfile["teachingTone"])}
         >
           <SelectTrigger
             id="teachingTone"
-            className={errors.teachingTone ? "border-red-500" : ""}
+            className={errors.teachingTone ? "border-red-400 focus:ring-red-400" : ""}
           >
-            <SelectValue placeholder="Select a tone" />
+            <SelectValue placeholder="Choose a tone" />
           </SelectTrigger>
           <SelectContent>
-            {TEACHING_TONES.map((tone) => (
-              <SelectItem key={tone} value={tone}>
-                {tone}
+            {TEACHING_TONES.map(({ value, description }) => (
+              <SelectItem key={value} value={value}>
+                <div className="flex flex-col">
+                  <span className="font-medium">{value}</span>
+                  <span className="text-muted-foreground text-xs">{description}</span>
+                </div>
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
         {errors.teachingTone && (
-          <p className="text-sm text-red-500">{errors.teachingTone}</p>
+          <p className="text-xs text-red-500">{errors.teachingTone}</p>
         )}
       </div>
 
-      <Button type="submit" disabled={loading} className="w-full">
+      <Button type="submit" disabled={loading} className="w-full mt-2">
         {loading ? "Saving..." : submitLabel}
       </Button>
     </form>

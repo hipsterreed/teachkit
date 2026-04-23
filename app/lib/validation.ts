@@ -17,6 +17,7 @@ export function validateTeacherProfile(
 ): ValidationResult {
   const missingFields: string[] = [];
 
+  if (!profile || isBlank(profile.name)) missingFields.push("name");
   if (!profile || isBlank(profile.gradeLevel)) missingFields.push("gradeLevel");
   if (!profile || isBlank(profile.subject)) missingFields.push("subject");
   if (!profile || isBlank(profile.teachingTone)) missingFields.push("teachingTone");
