@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase-admin";
 import { applyPageContentChange } from "@/lib/lesson-logic";
-import type { Lesson, Page } from "@/lib/types";
+import type { Lesson } from "@/lib/types";
 
 type Params = Promise<{ lessonId: string; pageId: string }>;
 
@@ -31,13 +31,11 @@ export async function PATCH(request: Request, { params }: { params: Params }) {
       return NextResponse.json({ error: "Page not found" }, { status: 404 });
     }
 
-    const changes: Partial<Pick<Page, "title" | "body" | "example" | "activity">> = {};
-    if (body.title !== undefined) changes.title = body.title;
-    if (body.body !== undefined) changes.body = body.body;
-    if (body.example !== undefined) changes.example = body.example;
-    if (body.activity !== undefined) changes.activity = body.activity;
+    // Strip system fields from the incoming body — only allow content fields
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, order, pageType, status, narrationUrl, ...contentFields } = body;
 
-    const updatedPage = applyPageContentChange(lesson.pages[pageIndex], changes);
+    const updatedPage = applyPageContentChange(lesson.pages[pageIndex], contentFields);
     const updatedPages = [...lesson.pages];
     updatedPages[pageIndex] = updatedPage;
 

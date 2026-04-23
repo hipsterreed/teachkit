@@ -33,6 +33,8 @@ export async function POST(request: Request, { params }: { params: Params }) {
       return NextResponse.json({ error: "Page not found" }, { status: 404 });
     }
 
+    const currentPage = lesson.pages[pageIndex];
+
     const brief = {
       title: lesson.title,
       topic: lesson.topic,
@@ -43,8 +45,9 @@ export async function POST(request: Request, { params }: { params: Params }) {
     const prompt = buildRegenerationPrompt(
       lesson.teacherProfile,
       brief,
-      lesson.pages[pageIndex].order,
-      lesson.pages.length
+      currentPage.order,
+      lesson.pages.length,
+      currentPage.pageType
     );
 
     const completion = await openai.chat.completions.create({
@@ -61,17 +64,15 @@ export async function POST(request: Request, { params }: { params: Params }) {
     const rawJson = JSON.parse(rawContent);
     const rawPage = rawJson.page;
 
-    if (!rawPage?.title || !rawPage?.body || !rawPage?.example || !rawPage?.activity) {
+    if (!rawPage || typeof rawPage !== "object") {
       return NextResponse.json({ error: "Invalid AI response format" }, { status: 500 });
     }
 
-    const updatedPage = applyPageContentChange(lesson.pages[pageIndex], {
-      title: rawPage.title.trim(),
-      body: rawPage.body.trim(),
-      example: rawPage.example.trim(),
-      activity: rawPage.activity.trim(),
-    });
+    // Strip system fields and merge content fields
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, order, status, narrationUrl, ...contentFields } = rawPage;
 
+    const updatedPage = applyPageContentChange(currentPage, contentFields);
     const updatedPages = [...lesson.pages];
     updatedPages[pageIndex] = updatedPage;
 
